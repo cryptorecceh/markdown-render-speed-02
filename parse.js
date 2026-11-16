@@ -721,11 +721,16 @@ function balancedText(s, from, to) {
       // Find a matching run of the same length.
       let m = k;
       let found = -1;
+      let innerDiffBacktick = false;
       while (m < to) {
         if (s[m] === '`') {
           let e = m;
           while (e < to && s[e] === '`') e++;
           if (e - m === run) { found = e; break; }
+          // A backtick run of a DIFFERENT length inside the span:
+          // marked's link-text code-span pattern allows no such
+          // backtick in the content, so the link does not form.
+          innerDiffBacktick = true;
           m = e;
         } else m++;
       }
@@ -734,6 +739,7 @@ function balancedText(s, from, to) {
         j = k;
         continue;
       }
+      if (innerDiffBacktick) return false;
       closedLens.add(run);
       j = found;
       continue;
