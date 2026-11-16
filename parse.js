@@ -530,6 +530,7 @@ function resolveEmphasis(nodes) {
     if (nd.k !== 'delim') continue;
     if (nd.canClose) {
       let opIdx = -1;
+      const ci0 = nodes.indexOf(nd);
       for (let j = openers.length - 1; j >= 0; j--) {
         const op = openers[j];
         // A delimiter never pairs with itself.
@@ -542,6 +543,20 @@ function resolveEmphasis(nodes) {
             if (sum % 3 === 0 && !(op.orig % 3 === 0 && nd.orig % 3 === 0)) continue;
           }
         }
+        // A strong formed from a "both" closer blocks an outer
+        // single emphasis spanning it, but only when the strong and
+        // the em use the SAME delimiter character: `_large
+        // **data**not_` still forms the `_` em around the `*` strong.
+        const use0 = (op.n >= 2 && nd.n >= 2) ? 2 : 1;
+        if (use0 === 1) {
+          const oi0 = nodes.indexOf(op);
+          let blocked = false;
+          for (let q = oi0 + 1; q < ci0; q++) {
+            const bq = nodes[q];
+            if (bq.bothStrong && bq.bothStrongCh === nd.ch) { blocked = true; break; }
+          }
+          if (blocked) continue;
+        }
         opIdx = j;
         break;
       }
@@ -553,6 +568,16 @@ function resolveEmphasis(nodes) {
         const ci = nodes.indexOf(nd);
         const kids = nodes.slice(oi + 1, ci);
         const emNode = { k: 'em', tag, kids };
+        // Mark a strong whose opener is open-only and whose closer
+        // can also open, so an outer em spanning it is blocked (see
+        // above). When the opener can also close (cm-411
+        // `*foo**bar**baz*`), the outer em still forms. Record the
+        // delimiter character: the block applies only to an em using
+        // the same character.
+        if (use === 2 && !op.canClose && nd.canOpen && nd.canClose) {
+          emNode.bothStrong = true;
+          emNode.bothStrongCh = nd.ch;
+        }
         op.n -= use;
         nd.n -= use;
         const rep = [];
