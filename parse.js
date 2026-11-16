@@ -1038,6 +1038,24 @@ function parseInline(src, refs) {
       if (cc === ' ' || cc === '\t' || cc === '\n' || cc === '\r' ||
           cc === '\f' || cc === '<') break;
       if (cc === ']' && inBrackets) break;
+      // A `(` right after a `]` (or its percent-encoding `%5D`)
+      // ends the bare URL — unless the `(` is closed by a matching
+      // `)` later in the URL (balanced parens stay in the URL, e.g.
+      // `...page=4)%5D(./docs/create.md)` is one URL).
+      if (cc === '(' && end > pos) {
+        const afterBracket = src[end - 1] === ']' ||
+          (end - 3 >= pos && src[end - 3] === '%' && src[end - 2] === '5' &&
+            (src[end - 1] === 'D' || src[end - 1] === 'd'));
+        if (afterBracket) {
+          let hasClose = false;
+          for (let q = end + 1; q < n; q++) {
+            const cq = src[q];
+            if (cq === ' ' || cq === '\t' || cq === '\n' || cq === '\r' || cq === '\f' || cq === '<') break;
+            if (cq === ')') { hasClose = true; break; }
+          }
+          if (!hasClose) break;
+        }
+      }
       end++;
     }
     const url = src.slice(pos, pos + trimUrlEnd(src.slice(pos, end)));
